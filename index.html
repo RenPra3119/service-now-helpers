@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Case Assistant - Corrected</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; margin: 20px; background-color: #f4f7f6; }
+        .container { max-width: 800px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; background-color: #ffffff; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        h2 { border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; color: #333; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
+        .category-container, .helper-container { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+        .helper-container { margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 4px; }
+        .helper-container label { white-space: nowrap; margin-right: 5px; align-self: center; }
+        select, input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background-color: #fff; }
+        .category-container select, .helper-container select { width: auto; flex-grow: 1; }
+        .helper-container input { flex-grow: 1; }
+        input.copyable-field { background-color: #e9ecef; color: #495057; font-family: "Courier New", Courier, monospace; font-weight: bold; margin-bottom: 10px; }
+        input.copyable-field:last-child { margin-bottom: 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>New Case Assistant</h2>
+    <form id="caseForm" onsubmit="return false;">
+        <div class="form-group">
+            <label>Product Category</label>
+            <div id="productCategoryContainer" class="category-container"></div>
+            <div id="productHelperContainer"></div>
+        </div>
+        <div class="form-group">
+            <label>Case Category</label>
+            <div id="caseCategoryContainer" class="category-container"></div>
+            <div id="caseHelperContainer"></div>
+        </div>
+        <div class="form-group">
+            <label for="assignmentGroup">Assignment group</label>
+            <select id="assignmentGroup" name="assignmentGroup"></select>
+        </div>
+        <div class="form-group">
+            <label for="commonNotes">Additional Notes</label>
+            <input type="text" id="commonNotes" placeholder="Appends to description, prefixed with :">
+        </div>
+
+        <div class="form-group">
+            <label>Copyable Outputs</label>
+            <input type="text" id="fullProductCategoryPath" class="copyable-field" readonly placeholder="Selected Product Path...">
+            <input type="text" id="fullCaseCategoryPath" class="copyable-field" readonly placeholder="Selected Case Path...">
+            <input type="text" id="fullAssignmentGroup" class="copyable-field" readonly placeholder="Selected Assignment Group...">
+            <input type="text" id="shortDescription" name="shortDescription" class="copyable-field" readonly placeholder="Generated Short Description...">
+        </div>
+    </form>
+</div>
+
+<script>
+// --- DATA CONSTANTS ---
+const PRODUCT_CATEGORY_PATHS = ["3rd Party","3rd Party > Hardware","3rd Party > KeyWatcher","3rd Party > KeyWatcher > Asset Watcher","3rd Party > KeyWatcher > Hardware","3rd Party > KeyWatcher > Illuminated","3rd Party > KeyWatcher > Key-Pro","3rd Party > KeyWatcher > Lantronix","3rd Party > KeyWatcher > Touch","3rd Party > KeyWatcher > True-Touch","3rd Party > Lantronix","3rd Party > Oppie","3rd Party > PamiBar","Acuity","Credentials","Credentials > Education related","Credentials > General","Credentials > Hospitality related","Credentials > Marine related","Credentials > Other","Department","Finance","Logistics","Project Management","Sales","Service Contracts","Elsafe","Elsafe > Decode","Elsafe > Safe","Elsafe > Safe > Infinity","Elsafe > Safe > Sentinel","Elsafe > Safe > Xtra","Elsafe > Safe > Zenith Drawer","Elsafe > Safe > Zenith Floor","Elsafe > Safe > Zenith In-Wall","Elsafe > Safe > Zenith Standard","Elsafe > Safe > Zenith Wide","Elsafe > SafeAdmin","Elsafe > Safelink","Elsafe > Service Device","Hardware","Hardware > Electronics","Hardware > Escutcheon","Hardware > General","Hardware > Handles","Integrations","Integrations > Elevator Integrations","Integrations > Network","Integrations > Other","Integrations > Parking Integrations","Legacy Products","Legacy Products > 2100","Legacy Products > 2800","Legacy Products > Classic Systems","Legacy Products > Remote Controller","Legacy Products > VC1040","Legacy Products > Vision","Legacy Products > Vision > Encoder","Legacy Products > Vision > Exit Devices","Legacy Products > Vision > KeyCards","Legacy Products > Vision > Lock","Legacy Products > Vision > Multi-Output Controller","Legacy Products > Vision > PMS Interface","Legacy Products > Vision > Remote Controller","Legacy Products > Vision > Service Device","Legacy Products > Vision > Software","Lock System License","Lock System License > Vision","Network","Network > General","Network > Other","Orion","Orion > Hardware","Orion > Network","Orion > Software","Outage","Polarbar","Polarbar > Minibar","Safe System License","Safe System License > Elsafe","Support Contract Request","Support Contract Request > Contract Lead","Support Contract Request > New Request","Support Contract Request > Update Request","Visionline","Visionline > Hardware","Visionline > Hardware > Allure","Visionline > Hardware > Exit Device","Visionline > Hardware > C-100","Visionline > Hardware > Classic RFID","Visionline > Hardware > E-100","Visionline > Hardware > Essence 1","Visionline > Hardware > Essence 2","Visionline > Hardware > Flex","Visionline > Hardware > Hilton Broker","Visionline > Hardware > Lift Controller","Visionline > Hardware > Remote Controller","Visionline > Hardware > Signature RFID","Visionline > Encoder","Visionline > Integrations","Visionline > Integrations > WEB API","Visionline > Integrations > Online Interell","Visionline > Integrations > Online 3rd Party","Visionline > Integrations > Online Inncom","Visionline > Integrations > Online Ruckus","Visionline > Integrations > Online Telkonet","Visionline > Integrations > PMS 1511","Visionline > Integrations > PMS PLUS","Visionline > KeyCards","Visionline > License","Visionline > RF Online AAH Network","Visionline > Service Device","Visionline > Service Device > Lock Service","Visionline > Software","Visionline > Miraculix","Vostio EAC","Vostio EAC > Apple Wallet","Vostio EAC > Encoder","Vostio EAC > Front Desk Web","Vostio EAC > Google Wallet","Vostio EAC > Locks","Vostio EAC > Locks > Classic RFID","Vostio EAC > Locks > Essence 2","Vostio EAC > Locks > Flex","Vostio EAC > Locks > Lift Controller","Vostio EAC > Locks > Novel","Vostio EAC > Locks > Remote Controller","Vostio EAC > Locks > Signature RFID","Vostio EAC > PMS","Vostio EAC > Service Tool","Vostio LS","Vostio LS > AMS","Vostio LS > Back End Portal","Vostio LS > HW","Vostio LS > Installer App","Vostio LS > Network","Vostio LS > RMA","Vostio LS >Front End Portal"];
+const RAW_CASE_CATEGORY_PATHS = ["Case Category > Beta Request","Case Category > Beta Request > Miscellaneous","Case Category > Beta Request > Mobile Access","Case Category > Beta Request > Safe","Case Category > Beta Request > Safe > Firmware","Case Category > Beta Request > Safe > Hardware","Case Category > Beta Request > Safe > Service Device","Case Category > Beta Request > Safe > Software","Case Category > Beta Request > Visionline","Case Category > Beta Request > Visionline > Firmware","Case Category > Beta Request > Visionline > Hardware","Case Category > Beta Request > Visionline > Integration","Case Category > Beta Request > Visionline > Lock Service 3G","Case Category > Beta Request > Visionline > Software","Case Category > Beta Request > Visionline > Visionline Mobile Service Tool","Case Category > Beta Request > Vostio Access Management","Case Category > Beta Request > Vostio Access Management > Encoder","Case Category > Beta Request > Vostio Access Management > Firmware","Case Category > Beta Request > Vostio Access Management > Hardware","Case Category > Beta Request > Vostio Access Management > Integration","Case Category > Beta Request > Vostio Access Management > PMS Converter","Case Category > Beta Request > Vostio Access Management > Vostio Service Tool","Case Category > Beta Request > Vostio Access Management > Vostio Web Portal","Case Category > Beta Request > Vostio Access Management >Mobile Access","Case Category > Beta Request > Vostio Location Solutions","Case Category > Beta Request > Vostio Location Solutions > Firmware","Case Category > Beta Request > Vostio Location Solutions > Hardware","Case Category > Beta Request > Vostio Location Solutions > Installer App","Case Category > Beta Request > Vostio Location Solutions > Vostio Location Solutions Portal","Case Category > General","Case Category > General > Academy","Case Category > General > Academy > Access","Case Category > General > Access","Case Category > General > Account maintenance","Case Category > General > Account maintenance > Account Address update","Case Category > General > Account maintenance > Account Name update","Case Category > General > Account maintenance > Cancel Mobile Access Subscription","Case Category > General > Account maintenance > Cancel Online Subscription","Case Category > General > Account maintenance > Cancel Support Contract - Customer","Case Category > General > Account maintenance > Cancel Support Contract - Non Payment","Case Category > General > Account maintenance > Cancel Vostio EAC Subscription","Case Category > General > Account maintenance > Cancel Vostio LS Subscription","Case Category > General > Account maintenance > Key Account update","Case Category > General > Account maintenance > Management Company update","Case Category > General > Information","Case Category > General > Knowledge Core","Case Category > General > Legacy","Case Category > General > Legacy > Other","Case Category > General > PTI Support","Case Category > General > ServiceNow","Case Category > Keycards","Case Category > Keycards > Card antenna broken","Case Category > Keycards > Card personalization","Case Category > Keycards > Card Protection","Case Category > Keycards > Disable Mifare Classic","Case Category > Keycards > Disable Mifare Plus","Case Category > Keycards > Enable Mifare Classic","Case Category > Keycards > Enable Mifare Plus","Case Category > Other","Case Category > Other > Bug","Case Category > Other > Cancel Subscription","Case Category > Other > Cancel Subscription > AA Product Change","Case Category > Other > Cancel Subscription > AR Cancel for non-payment","Case Category > Other > Cancel Subscription > Property Sale/Transfer","Case Category > Other > Cancel Subscription > Removed/Changed Hardware/not AA customer","Case Category > Other > Cancel Subscription > Unknown","Case Category > Other > NA","Case Category > Other > Professional Services - Not Completed","Case Category > Other > Support Contract","Case Category > Other > Support Contract > Contract Changes","Case Category > Other > Support Contract > Support Contract Inquiry","Case Category > Other > Vulnerability","Case Category > Service Request","Case Category > Service Request > AMS On Site Service","Case Category > Service Request > Database Support","Case Category > Service Request > Database Support > Database Migration (Remote)","Case Category > Service Request > Database Support > Database Rebuild (Remote)","Case Category > Service Request > Database Support > Database Recovery (Remote)","Case Category > Service Request > Database Support > Database Upgrade (Remote)","Case Category > Service Request > Database Support > Database Upgrade + Migration (Remote)","Case Category > Service Request > Database Support > Encoder setup (Remote)","Case Category > Service Request > Database Support > Front Desk Client Setup (Remote)","Case Category > Service Request > Database Support > Front Desk Refresh (Remote)","Case Category > Service Request > Database Support > Full refresh (Remote)","Case Category > Service Request > Database Support > Health Check (Remote)","Case Category > Service Request > Database Support > LS3G install (Remote)","Case Category > Service Request > Database Support > Mobile Key Activation & Setup (Remote)","Case Category > Service Request > Database Support > Network Migration (Remote)","Case Category > Service Request > Database Support > PMS Interface Setup Support (Remote)","Case Category > Service Request > Database Support > PreConfigure Device (Remote)","Case Category > Service Request > Database Support > System Training (Remote)","Case Category > Service Request > Onsite Service","Case Category > Service Request > Other","Case Category > Service Request > Preventative Maintenance","Case Category > Service Request > Repair","Case Category > Service Request > RMA","Case Category > Service Request > Support Contract On Site Service","Case Category > Service Request > Training","Case Category > Visionline Elevator Issues","Case Category > Visionline Elevator Issues > BLE Module is not installed","Case Category > Visionline Elevator Issues > Broken relaisboard","Case Category > Visionline Elevator Issues > Firmware issue","Case ATEGORY > Visionline Elevator Issues > Gateway issues","Case Category > Visionline Encoder Issues","Case Category > Visionline Encoder Issues > Encoder Configuration","Case Category > Visionline Encoder Issues > Encoder Displays Offline/Online Idle","Case Category > Visionline Encoder Issues > Encoder Online but Unable to Make keys","Case Category > Visionline Encoder Issues > Ethernet/ USB connection Issue","Case Category > Visionline Encoder Issues > Firmware Compatibility Issue","Case Category > Visionline Encoder Issues > Hardware Failure","Case Category > Visionline Encoder Issues > Unable To Encode Mifare Classic Keys","Case Category > Visionline Encoder Issues > Unable To Encode Mifare Plus keys","Case Category > Visionline Encoder Issues > Unable To Ping Encoder","Case Category > Visionline License","Case Category > Visionline License > Disable Operator Card","Case Category > Visionline License > Guest Key Validity","Case Category > Visionline License > License Expiration","Case Category > Visionline License > New Option Request","Case Category > Visionline Lock Issues","Case Category > Visionline Lock Issues > Battery Drain","Case Category > Visionline Lock Issues > BLE Missing","Case Category > Visionline Lock Issues > Deadbolt thrown error","Case Category > Visionline Lock Issues > Door Remains Unlocked","Case Category > Visionline Lock Issues > Door shut unable to open standard DB","Case Category > Visionline Lock Issues > Door shut unable to open-ADB","Case Category > Visionline Lock Issues > Guest keys not working","Case Category > Visionline Lock Issues > Handle Loose","Case Category > Visionline Lock Issues > Hardware failure","Case Category > Visionline Lock Issues > Install issue","Case Category > Visionline Lock Issues > lock buzzes","Case Category > Visionline Lock Issues > Lock Firmware Bug","Case Category > Visionline Lock Issues > lock programing","Case ATEGORY > Visionline Lock Issues > Mobile Key not being accepted","Case Category > Visionline Lock Issues > Pinched wires","Case Category > Visionline Lock Issues > Staff keys not working","Case Category > Visionline Lock Issues > Unable To Program-Time Out Error","Case Category > Visionline mobile Key issues","Case Category > Visionline mobile Key issues > BLE Profiles Not Set UP","Case Category > Visionline mobile Key issues > Mobile Access Account Test Failed","Case Category > Visionline mobile Key issues > Unable To Issue Mobile Key-AAH Portal","Case Category > Visionline mobile Key issues > Unable To Issue Mobile Key-Hyatt","Case Category > Visionline mobile Key issues > Web API Port Not Open","Case Category > Visionline mobile Key issues > Web API Set up issue","CC > Visionline mobile Key issues > AAH/Liivi Portal Set Up Issue","CC > Visionline mobile Key issues > Mobile key app not installed or set up correctly-AAH/Liivi","CC > Visionline mobile Key issues > Mobile key doesn't unlock door","CC > Visionline mobile Key issues > Mobile key opening takes too long","CC > Visionline mobile Key issues > Unable To Issue Mobile Key-3rd party app","CC > Visionline mobile Key issues > Unable To Issue Mobile Key-Hilton","CC > Visionline mobile Key issues > Unable To Issue mobile Key-Liivi","CC > Visionline mobile Key issues > Unable To Issue Mobile Key-Marriott","Case Category > Visionline Online Issues","CC > Visionline Online Issues > License option missing","CC > Visionline Online Issues > Online 3rd party connection issue","CC > Visionline Online Issues > RS485 connection issues","CC > Visionline Online Issues > ZigBee connection issues","Case Category > Visionline PMS Issues","CC > Visionline PMS Issues > PMS provider issue","CC > Visionline PMS Issues > Visionline service issue","Case Category > Visionline RC Issues","CC > Visionline RC Issues > BLE Module is not installed","CC > Visionline RC Issues > Broken relay board","CC > Visionline RC Issues > Egress issue","CC > Visionline RC Issues > Fire relay issue","CC > Visionline RC Issues > Firmware issue","CC > Visionline RC Issues > Gateway issues","CC > Visionline RC Issues > Power Supply issue","Case Category > Visionline Software Issues","CC > Visionline Software Issues > Client Install","CC > Visionline Software Issues > Configured Identity Error","CC > Visionline Software Issues > Database migration / Server move","CC > Visionline Software Issues > Encoder Not Selected","CC > Visionline Software Issues > Forgot Visionline access credentials","CC > Visionline Software Issues > How To Question","CC > Visionline Software Issues > Lockplan change","CC > Visionline Software Issues > Server Install","CC > Visionline Software Issues > Software Upgrade","CC > Visionline Software Issues > Software Vulnerability","CC > Visionline Software Issues > Start Up Error - Unable To Make Keys Client","CC > Visionline Software Issues > Start Up Error-Unable To Make Keys Serve","CC > Visionline Software Issues > Unable To Issue Card Yellow Box Appears","CC > Visionline Software Issues > Visionline Software Bug"];
+const ASSIGNMENT_GROUPS = [...new Set(["NAM Accounting Dept","NAM AMS Dept","NAM Implementation Team","NAM Labor Coord. Field Services","NAM PMO TECH","NAM Senior Care","NAM Service Contract Managment","NAM Support","NAM Support Canada","NAM Support CRT","NAM Support Knowledge Base","NAM Support Las Vegas","NAM Support Management","NAM Support Orlando","NAM Support Product Management","NAM Support Professional Services","NAM Support Special Projects Assignment","NAM Support T2","NAM Support T3"])];
+const SHORTHAND_MAP = {"Vostio EAC":"VosEAC","Vostio LS":"VosLM","Vostio":"Vos","Vision":"Vis","Visionline":"VL","Legacy Products":"Legacy","Multi-Output Controller":"MOC","Remote Controller":"RC","Lift Controller":"MOC","Signature RFID":"SigRFID","Classic RFID":"ClaRFID","Network":"NW","Gateway":"GW","Firmware":"FW","Software":"SW","Hardware":"HW"};
+
+// --- UTILITY FUNCTIONS ---
+const buildTree = (paths) => {
+    const tree = { children: {} };
+    [...new Set(paths)].forEach(path => {
+        let currentNode = tree;
+        path.split(' > ').forEach(part => {
+            currentNode.children = currentNode.children || {};
+            currentNode.children[part] = currentNode.children[part] || {};
+            currentNode = currentNode.children[part];
+        });
+    });
+    return tree;
+};
+const cleanCasePaths = [...new Set(RAW_CASE_CATEGORY_PATHS)];
+const casePathLookup = Object.fromEntries(cleanCasePaths.map(p => [p.replace(/^(Case Category|CC) > /, ''), p]));
+const productTree = buildTree(PRODUCT_CATEGORY_PATHS);
+const caseTree = buildTree(Object.keys(casePathLookup));
+
+/**
+ * The single source of truth for updating all calculated outputs based on current selections.
+ */
+function updateUIAndOutputs() {
+    // 1. Update Readonly Assignment Group
+    document.getElementById('fullAssignmentGroup').value = document.getElementById('assignmentGroup').value;
+
+    // 2. Generate and set the Short Description
+    const productPath = document.getElementById('fullProductCategoryPath').value;
+    const casePath = document.getElementById('fullCaseCategoryPath').value;
+    const notes = document.getElementById('commonNotes').value;
+    let finalParts = [];
+    
+    // Product Path Processing
+    if (productPath) {
+        let parts = productPath.split(' > ');
+        let processedParts = parts.map((part, index) => {
+            const currentSubPath = parts.slice(0, index + 1).join(' > ');
+            const visionServiceDeviceType = document.getElementById('visionServiceDeviceSelect')?.value;
+            const lockServiceType = document.getElementById('lockServiceSelect')?.value;
+
+            // Handle special override cases (highest priority)
+            if (currentSubPath === 'Legacy Products > Vision > Service Device' && visionServiceDeviceType) return visionServiceDeviceType;
+            if (currentSubPath === 'Visionline > Service Device > Lock Service' && lockServiceType) return lockServiceType;
+
+            // Handle version injection
+            const visionVersion = document.getElementById('visionVersionInput')?.value;
+            const vlVersion = document.getElementById('vlVersionInput')?.value;
+            if (part === "Vision" && visionVersion) return `Vis(${visionVersion})`;
+            if (part === "Visionline" && vlVersion) return `VL(${vlVersion})`;
+            
+            // Handle standard shorthands and formatting
+            if (SHORTHAND_MAP[part]) return SHORTHAND_MAP[part];
+            if (index > 0) return part.replace(/\s/g, ''); // no spaces for sub-cats
+            return part.split(' ').map(word => word.charAt(0)).join(''); // acronym for top-level
+        });
+
+        // Clean up parts that were replaced by special dropdowns
+        let filteredParts = processedParts;
+        if (document.getElementById('visionServiceDeviceSelect')?.value) filteredParts = processedParts.filter(p => p !== 'ServiceDevice');
+        if (document.getElementById('lockServiceSelect')?.value) filteredParts = processedParts.filter(p => p !== 'ServiceDevice' && p !== 'LockService');
+        finalParts.push(...[...new Set(filteredParts)]);
+    }
+
+    // Case Path Processing
+    const cleanCasePath = Object.keys(casePathLookup).find(key => casePathLookup[key] === casePath) || casePath;
+    if (cleanCasePath && cleanCasePath !== "Other > NA") {
+        let lastPart = cleanCasePath.split(' > ').pop() || '';
+        let newWords = lastPart.split(' ').map(word => SHORTHAND_MAP[word] || word);
+        finalParts.push(newWords.join(' '));
+    }
+    
+    // Combine everything
+    let finalDescription = finalParts.filter(p => p).join(' | ');
+    if (notes) finalDescription += ` : ${notes}`;
+    document.getElementById('shortDescription').value = finalDescription;
+}
+
+
+/**
+ * Manages the dynamic creation of cascading dropdowns.
+ */
+function createCascadingDropdowns(type, container, pathInput, helperContainer, rootNode) {
+    let currentPath = [];
+
+    function updateDropdowns(node, level) {
+        // Clear deeper dropdowns
+        container.querySelectorAll(`select[data-level]`).forEach(s => { if (parseInt(s.dataset.level) >= level) s.remove(); });
+        
+        // Update the visible path output
+        const currentCleanPath = currentPath.join(' > ');
+        pathInput.value = (type === 'case') ? (casePathLookup[currentCleanPath] || currentCleanPath) : currentCleanPath;
+        
+        // --- Manage dynamic helper inputs ---
+        helperContainer.innerHTML = '';
+        if (type === 'product') {
+            if (currentCleanPath.startsWith('Visionline')) helperContainer.innerHTML += `<div class="helper-container"><label for="vlVersionInput">Version:</label><input type="text" id="vlVersionInput" placeholder="1.xx.y"></div>`;
+            if (currentCleanPath.startsWith('Legacy Products > Vision')) helperContainer.innerHTML += `<div class="helper-container"><label for="visionVersionInput">Version:</label><input type="text" id="visionVersionInput" placeholder="6.x.y-SRz"></div>`;
+            if (currentCleanPath === 'Legacy Products > Vision > Service Device') helperContainer.innerHTML += `<div class="helper-container"><label for="visionServiceDeviceSelect">Device Type:</label><select id="visionServiceDeviceSelect"><option value="">--Select--</option><option value="LL4W">LL4W</option><option value="LL4HH">LL4HH</option></select></div>`;
+            if (currentCleanPath === 'Visionline > Service Device > Lock Service') helperContainer.innerHTML += `<div class="helper-container"><label for="lockServiceSelect">Service Type:</label><select id="lockServiceSelect"><option value="">--Select--</option><option value="LS3G">LS3G</option><option value="LS">LS</option></select></div>`;
+            helperContainer.querySelectorAll('input, select').forEach(el => el.addEventListener('input', updateUIAndOutputs));
+        }
+        
+        // Stop if at a leaf node
+        const children = node.children ? Object.keys(node.children).sort() : [];
+        if (children.length === 0) {
+            updateUIAndOutputs(); // Final update
+            return;
+        }
+        
+        // Create the new dropdown
+        const select = document.createElement('select');
+        select.dataset.level = level;
+        select.innerHTML = '<option value="">-- Select --</option>';
+        children.forEach(key => {
+            const option = document.createElement('option');
+            option.value = key;
+            const hasChildren = node.children[key] && Object.keys(node.children[key].children || {}).length > 0;
+            option.textContent = hasChildren ? `${key} >` : key;
+            select.appendChild(option);
+        });
+        
+        // Event listener for the new dropdown
+        select.addEventListener('change', e => {
+            const selectedValue = e.target.value;
+            currentPath = currentPath.slice(0, level);
+            if (selectedValue) currentPath.push(selectedValue);
+            updateDropdowns(selectedValue ? node.children[selectedValue] : { children: {} }, level + 1);
+        });
+
+        container.appendChild(select);
+        updateUIAndOutputs();
+    }
+    updateDropdowns(rootNode, 0); // Initial call
+}
+
+// --- DOM READY ---
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Get DOM Elements ---
+    const productContainer = document.getElementById('productCategoryContainer');
+    const productPathInput = document.getElementById('fullProductCategoryPath');
+    const productHelperContainer = document.getElementById('productHelperContainer');
+    const caseContainer = document.getElementById('caseCategoryContainer');
+    const casePathInput = document.getElementById('fullCaseCategoryPath');
+    const caseHelperContainer = document.getElementById('caseHelperContainer');
+    const agSelect = document.getElementById('assignmentGroup');
+    const notesInput = document.getElementById('commonNotes');
+
+    // --- Initial Dropdown Population ---
+    ASSIGNMENT_GROUPS.forEach(group => agSelect.add(new Option(group, group)));
+    createCascadingDropdowns('product', productContainer, productPathInput, productHelperContainer, productTree);
+    createCascadingDropdowns('case', caseContainer, casePathInput, caseHelperContainer, caseTree);
+    
+    // --- Event Listeners for Static Elements ---
+    agSelect.addEventListener('change', updateUIAndOutputs);
+    notesInput.addEventListener('input', updateUIAndOutputs);
+    
+    // --- Initial UI State ---
+    updateUIAndOutputs(); 
+});
+</script>
+
+</body>
+</html>
